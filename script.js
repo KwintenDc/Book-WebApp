@@ -1,78 +1,103 @@
-$(document).ready(function(){
-    $('#content').load('pages/home.html');
-    $('.nav-link').click(function(){
-        console.log('clicked');
-        $('#content').load('pages/' + $(this).attr('data-page'));
-    });  
-    // vvv Doesnt work yet vvv
-    $('#content').on('click', '.image-button', function(){
-        console.log('image clicked');
-        $('#content').load('pages/' + $(this).attr('data-page'));
-    });
-});
-
+var currentPage = 'home.html';
 var db;
 
-window.addEventListener("load", () => {
-    if (!window.indexedDB)
-        console.log("IndexedDB not supported.");
-    else {
-        var request = window.indexedDB.open("bookstore", 1);
+window.addEventListener('load', function() {
+    // Open the IndexedDB database
+    var request = indexedDB.open("bookDB", 1);
 
-        request.onsuccess = (event) => {
-            console.log("Database opened successfully");
-            db = event.target.result;
-        };
+    request.onerror = function(event) {
+        console.log('error: ' + event.target.errorCode);
+    };
+    request.onsuccess = function(event) {
+        db = request.result;
+        console.log('success: ' + db);
+    };
 
-        request.onupgradeneeded = (event) => {
-            console.log("Database upgrade needed");
+    // General page loading code
+    $('#content').load('pages/home.html');
+    $('.nav-link').click(function(){
+        $('#content').attr('data-currentPage', $(this).attr('data-page'));
+        $('#content').load('pages/' + $(this).attr('data-page'));
+        currentPage = document.getElementById('content').getAttribute('data-currentPage');
+        pageChanged();
+    });  
+    $('#content').on('click', '.image-button', function(){
+        $('#content').attr('data-currentPage', $(this).attr('data-page'));
+        $('#content').load('pages/' + $(this).attr('data-page'));
+        currentPage = document.getElementById('content').getAttribute('data-currentPage');
+        pageChanged();
+    });
 
-            db = event.target.result;
+    // Handle form submission
+    $('#content').on('submit', '#uploadForm', function(event) {
+        event.preventDefault(); 
 
-            if (!db.objectStoreNames.contains("books")) {
-                db.createObjectStore("books", { autoIncrement: true });
-                console.log("Object store 'books' created");
-            }
-        };
+        var title = $('#title').val();
+        var keywords = $('#keywords').val();
+        var author = $('#author').val();
+        var imageFile = $('#image')[0].files[0]; 
 
-        request.onerror = (event) => {
-            console.log("Error opening database");
-        };
-    }
+        // Convert image file to a blob
+        var reader = new FileReader();
+        reader.onload = function(event) {
+            var imageBlob = event.target.result;
 
-    document.getElementById("uploadForm").addEventListener("submit", (event) => {
-        event.preventDefault(); // Prevent form submission
-
-        var title = document.getElementById("title").value;
-        var keywords = document.getElementById("keywords").value;
-        var author = document.getElementById("author").value;
-        var imageFile = document.getElementById("image").files[0];
-
-        if (title && author && imageFile) {
             var transaction = db.transaction(["books"], "readwrite");
             var objectStore = transaction.objectStore("books");
 
-            var bookData = {
+            var newBook = {
                 title: title,
                 keywords: keywords,
                 author: author,
-                image: imageFile
+                image: imageBlob
             };
 
-            var request = objectStore.add(bookData);
+            var addRequest = objectStore.add(newBook);
 
-            request.onsuccess = () => {
-                console.log("Book added to IndexedDB");
-                // Reset form after successful submission
-                document.getElementById("uploadForm").reset();
+            addRequest.onsuccess = function(event) {
+                console.log("[INFO] Book added to database successfully.");
             };
 
-            request.onerror = (event) => {
-                console.error("Error adding book:", event.target.error);
+            addRequest.onerror = function(event) {
+                console.error("Error adding book to database: " + addRequest.error);
             };
-        } else {
-            alert("Please fill in all fields and select an image.");
-        }
+        };
+
+        reader.readAsDataURL(imageFile); 
     });
 });
+
+function pageChanged() {
+    if(currentPage == 'home.html') {
+        console.log('home');
+    } else if(currentPage == 'view_books.html'){
+        console.log('view_books');
+    } else if(currentPage == 'store_books.html'){
+        if (!window.indexedDB) {
+            console.log("Your browser doesn't support a stable version of IndexedDB.");
+        } else {
+            var request = window.indexedDB.open("bookDB", 1);
+        
+            request.onerror = function(event) {
+                console.log('error: ' + event.target.errorCode);
+            };
+            request.onsuccess = function(event) {
+                db = request.result;
+                console.log('success: ' + db);
+            };
+            request.onupgradeneeded = function(event) {
+                var db = event.target.result;
+                
+                // Create an object store (table) named 'books'
+                var objectStore = db.createObjectStore("books", { autoIncrement : true });
+                
+                objectStore.transaction.oncomplete = (event) => {
+                    console.log("[INFO] Object store 'books' created successfully.");
+                };
+            };
+        }
+    } else if(currentPage == 'qr_code.html'){
+        console.log('qr_code');
+    }
+}
 
