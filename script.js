@@ -2,7 +2,6 @@ var currentPage = 'home.html';
 var db;
 
 window.addEventListener('load', function()  {
-    // General page loading code
     $('#content').load('pages/home.html');
 
     // function() is necessary! Not arrow function: 
