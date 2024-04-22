@@ -1,0 +1,20 @@
+<h2 class="mb-4">Upload Book</h2>
+<form id="uploadForm" enctype="multipart/form-data" action="">
+    <div class="form-group">
+        <label for="title">Title:</label>
+        <input type="text" class="form-control" id="title" name="title" required placeholder="e.g. Cooking for dummies">
+    </div>
+    <div class="form-group">
+        <label for="keywords">Keywords (uses spaces between words):</label>
+        <input type="text" class="form-control" id="keywords" name="keywords" placeholder="e.g. Summer Italian Vegan">
+    </div>
+    <div class="form-group">
+        <label for="author">Author:</label>
+        <input type="text" class="form-control" id="author" name="author" placeholder="e.g. Bob DaGuy">
+    </div>
+    <div class="form-group">
+        <label for="image">Image:</label>
+        <input type="file" class="form-control-file" id="image" name="image" accept="image/*" required>
+    </div>
+    <button type="submit" class="btn btn-success" id="savebtn">Upload</button>
+</form>
