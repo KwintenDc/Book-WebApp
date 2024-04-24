@@ -12,16 +12,14 @@ window.addEventListener('load', function()  {
         console.log('clicked');
         $('#content').attr('data-currentPage', $(this).attr('data-page'));
         console.log($(this).attr('data-page'));
-        $('#content').load('pages/' + $(this).attr('data-page'));
+        $('#content').load('pages/' + $(this).attr('data-page'), null, pageChanged);
         currentPage = document.getElementById('content').getAttribute('data-currentpage');
-        pageChanged();
     });  
     $('#content').on('click', '.image-button', function() {
         $('#content').attr('data-currentPage', $(this).attr('data-page'));
         console.log($(this).attr('data-page'));
-        $('#content').load('pages/' + $(this).attr('data-page'));
+        $('#content').load('pages/' + $(this).attr('data-page'), null, pageChanged);
         currentPage = document.getElementById('content').getAttribute('data-currentpage');
-        pageChanged();
     });
 
     // Handle form submission
@@ -113,7 +111,7 @@ window.addEventListener('load', function()  {
                 reader.readAsDataURL(imageFile);
             };
         });  
-
+        
         // Handle save button click
         card.find('.save-btn').click(() => {
             var newTitle = card.find('.title-input').val();
@@ -142,22 +140,26 @@ window.addEventListener('load', function()  {
                         updateRequest.onsuccess = (event) => {
 
                             card.html('<div class="card mb-3">' +
-                            '<div class="row no-gutters">' +
-                                '<div class="col-md-4">' +
-                                    '<img src="' + book.image + '" class="card-img" alt="Book Image">' +
-                                '</div>' +
-                                '<div class="col-md-8">' +
-                                    '<div class="card-body">' +
-                                        '<h5 class="card-title">' + book.title + '</h5>' +
-                                        '<p class="card-text">Author: ' + book.author + '</p>' +
-                                        '<p class="card-text">Keywords: ' + book.keywords + '</p>' +
-                                        '<button type="button" class="btn btn-primary edit-btn">' +
-                                            '<i class="fas fa-edit"></i> Edit' + 
-                                        '</button>' +
-                                    '</div>' +
-                                '</div>' +
-                            '</div>' +
-                        '</div>');
+                                        '<div class="row no-gutters">' +
+                                            '<div class="col-md-4">' +
+                                                '<img src="' + book.image + '" class="card-img" alt="Book Image">' +
+                                            '</div>' +
+                                            '<div class="col-md-8">' +
+                                                '<div class="card-body">' +
+                                                    '<h5 class="card-title">' + book.title + '</h5>' +
+                                                    '<p class="card-text">Author: ' + book.author + '</p>' +
+                                                    '<p class="card-text">Keywords: ' + book.keywords + '</p>' +
+                                                    '<button type="button" class="btn btn-primary edit-btn">' +
+                                                        '<i class="fas fa-edit"></i> Edit' + 
+                                                    '</button>' +
+                                                    '<button type="button" class="btn btn-danger ml-2 delete-btn">' +
+                                                        '<i class="fas fa-trash"></i> Delete' + 
+                                                    '</button>' +
+                                                '</div>' +
+                                            '</div>' +
+                                        '</div>' +
+                                    '</div>');
+
                         };
 
                         updateRequest.onerror = (event) => {
@@ -170,6 +172,37 @@ window.addEventListener('load', function()  {
             };
         });
     });
+
+    $('#content').on('click', '.delete-btn', function(){
+        console.log('delete');
+        var card = $(this).closest('.card');
+        var title = card.find('.card-title').text();
+        var author = card.find('.card-text:eq(0)').text().split(': ')[1];
+
+        var transaction = db.transaction(["books"], "readwrite");
+        var objectStore = transaction.objectStore("books");
+
+        var request = objectStore.openCursor();
+        request.onsuccess = (event) => {
+            var cursor = event.target.result;
+            if (cursor) {
+                var book = cursor.value;
+                if (book.title === title && book.author === author) {
+                    var deleteRequest = cursor.delete();
+                    deleteRequest.onsuccess = (event) => {
+                        console.log("[INFO] Book deleted from database successfully.");
+                    };
+                    deleteRequest.onerror = (event) => {
+                        console.error("Error deleting book: " + deleteRequest.error);
+                    };
+                } else {
+                    cursor.continue();
+                }
+            }
+        };
+        card.remove();
+    });
+
     $('#content').on('click', '.start-scan', (event) => {
         Quagga.init({
             inputStream: {
@@ -197,6 +230,49 @@ window.addEventListener('load', function()  {
                 Quagga.stop();
             });
         });
+        event.target.hidden = true;
+    });
+    $('#content').on('click','.add-book', (event) => {
+        var title = $('#title').text().split(': ')[1];
+        var author = $('#author').text().split(': ')[1];
+        var isbn = $('#isbn').text().split(': ')[1];
+        var format = $('#format').text().split(': ')[1];
+        var imageURL = "images/Image_not_available.png";
+    
+        // Fetch image file as Blob
+        fetch(imageURL)
+            .then(response => response.blob())
+            .then(imageBlob => {
+                // Convert image Blob to Base64 string
+                var reader = new FileReader();
+                reader.onload = (event) => {
+                    var imageBase64 = event.target.result;
+    
+                    var transaction = db.transaction(["books"], "readwrite");
+                    var objectStore = transaction.objectStore("books");
+    
+                    var newBook = {
+                        title: title,
+                        author: author,
+                        keywords: isbn + ' ' + format,
+                        image: imageBase64
+                    };
+    
+                    var addRequest = objectStore.add(newBook);
+    
+                    addRequest.onsuccess = () => {
+                        console.log("[INFO] Book added to database successfully.");
+                    };
+    
+                    addRequest.onerror = () => {
+                        console.error("Error adding book to database: " + addRequest.error);
+                    };
+                };
+                reader.readAsDataURL(imageBlob); // Read image Blob as data URL
+            })
+            .catch(error => {
+                console.error("Error fetching image: ", error);
+            });
     });
 });
 
@@ -204,7 +280,6 @@ function pageChanged() {
     if(currentPage == 'home.html') {
         console.log('home');
     } else if(currentPage == 'view_books.html'){
-        console.log('view_books');
         var request = indexedDB.open("bookDB", 1);
 
         request.onerror = (event) => {
@@ -213,12 +288,8 @@ function pageChanged() {
         request.onsuccess = (event) => {
             db = request.result;
             console.log('success: ' + db);
-
             displayAllBooks();
         };
-
-
-
     } else if(currentPage == 'store_books.html'){
         if (!window.indexedDB) {
             console.log("Your browser doesn't support a stable version of IndexedDB.");
@@ -235,7 +306,6 @@ function pageChanged() {
             request.onupgradeneeded = (event) => {
                 var db = event.target.result;
                 
-                // Create an object store (table) named 'books'
                 var objectStore = db.createObjectStore("books", { autoIncrement : true });
                 
                 objectStore.transaction.oncomplete = (event) => {
@@ -243,13 +313,21 @@ function pageChanged() {
                 };
             };
         }
-    } else if(currentPage == 'qr_code.html'){
-        
+    } else if(currentPage == 'barcode.html'){
+        var request = indexedDB.open("bookDB", 1);
+
+        request.onerror = (event) => {
+            console.log('error: ' + event.target.errorCode);
+        };
+        request.onsuccess = (event) => {
+            db = request.result;
+            console.log('success: ' + db);
+        };
     }
 }
 function displayAllBooks() {
     var objectStore = db.transaction("books").objectStore("books");
-    var bookList = $('#bookList');
+    var bookList = $('#content').find('#bookList');
 
     bookList.empty(); // Clear previous search results
 
@@ -257,7 +335,45 @@ function displayAllBooks() {
         var cursor = event.target.result;
         if (cursor) {
             var book = cursor.value;
-            var card = $('<div class="card mb-3">' +
+            if(book.image) { 
+                var card= $('<div class="card mb-3">' +
+                    '<div class="row no-gutters">' +
+                        '<div class="col-md-4">' +
+                            '<img src="' + book.image + '" class="card-img" alt="Book Image">' +
+                        '</div>' +
+                        '<div class="col-md-8">' +
+                            '<div class="card-body">' +
+                                '<h5 class="card-title">' + book.title + '</h5>' +
+                                '<p class="card-text">Author: ' + book.author + '</p>' +
+                                '<p class="card-text">Keywords: ' + book.keywords + '</p>' +
+                                '<button type="button" class="btn btn-primary edit-btn">' +
+                                    '<i class="fas fa-edit"></i> Edit' + 
+                                '</button>' +
+                                '<button type="button" class="btn btn-danger ml-2 delete-btn">' +
+                                    '<i class="fas fa-trash"></i> Delete' + 
+                                '</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>');
+                bookList.append(card);
+            } 
+            cursor.continue();
+        }
+    };
+}
+
+function searchBooks(searchTerm) {
+    var objectStore = db.transaction("books").objectStore("books");
+    var bookList = $('#bookList');
+    bookList.empty(); 
+
+    objectStore.openCursor().onsuccess = (event) => {
+        var cursor = event.target.result;
+        if (cursor) {
+            var book = cursor.value;
+            if (book.title.includes(searchTerm) || book.author.includes(searchTerm) || book.keywords.includes(searchTerm)) {
+                var card= $('<div class="card mb-3">' +
                 '<div class="row no-gutters">' +
                     '<div class="col-md-4">' +
                         '<img src="' + book.image + '" class="card-img" alt="Book Image">' +
@@ -270,40 +386,8 @@ function displayAllBooks() {
                             '<button type="button" class="btn btn-primary edit-btn">' +
                                 '<i class="fas fa-edit"></i> Edit' + 
                             '</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>');
-
-            bookList.append(card);
-            cursor.continue();
-        }
-    };
-}
-
-function searchBooks(searchTerm) {
-    var objectStore = db.transaction("books").objectStore("books");
-    var bookList = $('#bookList');
-
-    bookList.empty(); 
-
-    objectStore.openCursor().onsuccess = (event) => {
-        var cursor = event.target.result;
-        if (cursor) {
-            var book = cursor.value;
-            if (book.title.includes(searchTerm) || book.author.includes(searchTerm) || book.keywords.includes(searchTerm)) {
-                var card = $('<div class="card mb-3">' +
-                '<div class="row no-gutters">' +
-                    '<div class="col-md-4">' +
-                        '<img src="' + book.image + '" class="card-img" alt="Book Image">' +
-                    '</div>' +
-                    '<div class="col-md-8">' +
-                        '<div class="card-body">' +
-                            '<h5 class="card-title">' + book.title + '</h5>' +
-                            '<p class="card-text">Author: ' + book.author + '</p>' +
-                            '<p class="card-text">Keywords: ' + book.keywords + '</p>' +
-                            '<button type="button" class="btn btn-primary edit-btn">' +
-                                '<i class="fas fa-edit"></i> Edit' + // Edit icon from Font Awesome
+                            '<button type="button" class="btn btn-danger ml-2 delete-btn">' +
+                                '<i class="fas fa-trash"></i> Delete' + 
                             '</button>' +
                         '</div>' +
                     '</div>' +
@@ -325,15 +409,16 @@ function fetchBookDetails(isbn) {
             var bookDetails = document.getElementById('bookDetails');
             var qrScanner = document.getElementById('qrScanner');
             qrScanner.innerHTML = ''; 
-            var title = data.title ? '<h3>Title: ' + data.title + '</h3>' : '';
-            var author = data.contributors ? '<p>Author: ' + data.contributors[0].name + '</p>' : '';
-            var isbn = data.isbn_13 ? '<p>ISBN: ' + data.isbn_13[0] + '</p>' : '';
-            var physicalFormat = data.physical_format ? '<p>Physical Format: ' + data.physical_format + '</p>' : '';
-
-            var html = title + author + isbn + physicalFormat;
+            var title = data.title ? '<h3 id="title">Title: ' + data.title + '</h3>' : '';
+            var author = data.contributors ? '<p id="author">Author: ' + data.contributors[0].name + '</p>' : '';
+            var isbn = data.isbn_13 ? '<p id="isbn">ISBN: ' + data.isbn_13[0] + '</p>' : '';
+            var physicalFormat = data.physical_format ? '<p id="format">Physical Format: ' + data.physical_format + '</p>' : '';
+            var submit = '<button type="button" class="btn btn-primary add-book">Add to the database</button>';
+            var html = title + author + isbn + physicalFormat + submit;
 
             bookDetails.innerHTML = html;
             console.log('Book details:', data);
+            $('#content').find('.start-scan').attr('hidden', false);
         })
         .catch(error => {
             console.error('Error fetching book details:', error);
