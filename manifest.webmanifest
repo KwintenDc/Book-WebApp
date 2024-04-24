@@ -3,6 +3,8 @@
     "short_name": "ChCa",
     "description": "WebApp to store your books",
     "start_url": "index.html",
+    "theme_color": "#343a40",
+    "background_color": "#ffffff",
     "lang": "en-US",
     "display": "standalone",
     "orientation": "portrait-primary",
