@@ -277,9 +277,7 @@ window.addEventListener('load', function()  {
 });
 
 function pageChanged() {
-    if(currentPage == 'home.html') {
-        console.log('home');
-    } else if(currentPage == 'view_books.html'){
+    if(currentPage == 'view_books.html'){
         var request = indexedDB.open("bookDB", 1);
 
         request.onerror = (event) => {
@@ -417,7 +415,6 @@ function fetchBookDetails(isbn) {
             var html = title + author + isbn + physicalFormat + submit;
 
             bookDetails.innerHTML = html;
-            console.log('Book details:', data);
             $('#content').find('.start-scan').attr('hidden', false);
         })
         .catch(error => {
