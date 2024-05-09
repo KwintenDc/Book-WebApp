@@ -67,19 +67,22 @@ self.addEventListener("fetch", (event) => {
 
     event.respondWith(
         caches.match(event.request).then(cacheResponse => {
+            if (event.request.url.includes('barcode.html')) {
+                return fetch(event.request);
+            }
+
             return cacheResponse || fetch(event.request).then(fetchResponse => {
                 return caches.open(DYNAMIC_CACHE_NAME).then(cache => {
                     cache.put(event.request.url, fetchResponse.clone());
                     return fetchResponse;
                 })
             })
-            // Voeg hier het catch-gedeelte toe... Om te verwijzen naar een fallback.html.
             .catch(() => {
-                // Stel een extra voorwaarde in, zodat je de fallback enkel toont indien
-                // je een html-bestand opvraagt.
-                if(event.request.url.indexOf('.html') >= 0)
+                // Show fallback only if requesting an HTML file
+                if (event.request.url.indexOf('.html') >= 0)
                     return caches.match('pages/404.html');
             });
         })
     );
 });
+
