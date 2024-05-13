@@ -68,7 +68,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
         caches.match(event.request).then(cacheResponse => {
             if (event.request.url.includes('barcode.html')) {
-                return fetch(event.request);
+                return caches.match('pages/404.html');
             }
 
             return cacheResponse || fetch(event.request).then(fetchResponse => {
@@ -76,11 +76,6 @@ self.addEventListener("fetch", (event) => {
                     cache.put(event.request.url, fetchResponse.clone());
                     return fetchResponse;
                 })
-            })
-            .catch(() => {
-                // Show fallback only if requesting an HTML file
-                if (event.request.url.indexOf('.html') >= 0)
-                    return caches.match('pages/404.html');
             });
         })
     );
