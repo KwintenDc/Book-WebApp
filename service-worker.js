@@ -66,29 +66,20 @@ self.addEventListener("fetch", (event) => {
     console.log("Fetch event: ", event);
 
     event.respondWith(
-        // First, attempt to fetch the requested resource from the cache
         caches.match(event.request).then(cacheResponse => {
-            // If the requested resource is in the cache, return it
             if (cacheResponse) {
-                console.log('Resource found in cache');
                 return cacheResponse;
             }
 
-            // If the requested resource is not in the cache, fetch it
             return fetch(event.request).then(fetchResponse => {
-                // If fetching was successful, cache the response for future use
                 return caches.open(DYNAMIC_CACHE_NAME).then(cache => {
                     cache.put(event.request.url, fetchResponse.clone());
-                    console.log('Resource fetched and cached');
                     return fetchResponse;
                 });
             }).catch(() => {
-                // If fetching failed and it's an HTML file, return a fallback page
                 if (event.request.url.indexOf('.html') !== -1) {
-                    console.log('Fetching failed, returning fallback page');
                     return caches.match('pages/404.html');
                 }
-                // If it's not an HTML file and it's not in the cache, return an empty response
                 return new Response('', { status: 404, statusText: 'Not Found' });
             });
         })
